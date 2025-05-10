@@ -1,0 +1,29 @@
+# Go Build outputs
+server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Output of the go coverage tool
+*.out
+cover.out
+
+# Air build temporary directory and logs
+tmp/
+air_build.log
+
+# Local environment file
+.env
+.env.*
+!.env.example
+
+# Generated Swagger documentation directory
+docs/
+
+# Keys directory for Google Cloud Storage
+keys/

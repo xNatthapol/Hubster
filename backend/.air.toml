@@ -1,0 +1,30 @@
+# Working directory
+root = "."       # Watch from the current directory where air is run (which will be /app in the container)
+tmp_dir = "tmp"  # Temporary directory for builds
+
+[build]
+# Command to build your app
+cmd = "go build -o ./tmp/server ./cmd/main.go"
+# Binary to run
+bin = "./tmp/server"
+# Files/dirs to watch for build changes
+include_ext = ["go", "tpl", "tmpl", "html", "env"]
+# Dirs/files to ignore
+exclude_dir = ["assets", "tmp", "vendor", "frontend", "docs"]
+# Files/dirs to watch for triggering the build
+include_dir = ["cmd", "internal", "."] # Watch root for .env changes
+# Log file for build output
+log = "air_build.log"
+# Delay between file change detection and build start
+delay = 1000 # milliseconds
+
+[log]
+# Log format for air itself
+time = true
+
+[misc]
+# Delete tmp directory on exit
+clean_on_exit = true
+
+[screen]
+clear_on_rebuild = true
