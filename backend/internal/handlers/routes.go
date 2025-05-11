@@ -11,7 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App, authHandler *AuthHandler, uploadHandler *UploadHandler, cfg *config.Config) {
+func SetupRoutes(app *fiber.App, authHandler *AuthHandler, userHandler *UserHandler, uploadHandler *UploadHandler, cfg *config.Config) {
 	// Swagger Documentation Route
 	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 
@@ -22,6 +22,11 @@ func SetupRoutes(app *fiber.App, authHandler *AuthHandler, uploadHandler *Upload
 	auth.Post("/signup", authHandler.SignUp)
 	auth.Post("/login", authHandler.Login)
 	auth.Get("/me", middleware.Protected(cfg), authHandler.GetMe)
+
+	// User Profile Routes
+	usersGroup := api.Group("/user", middleware.Protected(cfg))
+	usersGroup.Get("/profile", userHandler.GetUserProfile)
+	usersGroup.Patch("/profile", userHandler.UpdateUserProfile)
 
 	// Upload Route
 	uploads := api.Group("/uploads", middleware.Protected(cfg))

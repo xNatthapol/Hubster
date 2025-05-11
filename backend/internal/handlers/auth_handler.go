@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"errors"
+	"github.com/xNatthapol/hubster/internal/middleware"
 	"github.com/xNatthapol/hubster/internal/models"
 	"github.com/xNatthapol/hubster/internal/services"
-	"github.com/xNatthapol/hubster/internal/middleware"
 	"log"
 
 	"github.com/go-playground/validator/v10"
@@ -28,6 +28,7 @@ func NewAuthHandler(authService services.AuthService) *AuthHandler {
 type SignUpRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=6"`
+	FullName string `json:"full_name" validate:"required,min=2,max=100"`
 }
 
 // LoginRequest defines the request body for user login
@@ -69,7 +70,7 @@ func (h *AuthHandler) SignUp(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{Error: "Validation failed", Details: err.Error()})
 	}
 
-	user, err := h.authService.SignUpUser(c.Context(), req.Email, req.Password)
+	user, err := h.authService.SignUpUser(c.Context(), req.Email, req.Password, req.FullName)
 	if err != nil {
 		log.Printf("Error sign up user: %v", err)
 		if errors.Is(err, services.ErrUserAlreadyExists) {

@@ -15,10 +15,11 @@ var (
 	ErrUserAlreadyExists  = errors.New("user with this email already exists")
 	ErrUserNotFound       = errors.New("user not found")
 	ErrInvalidCredentials = errors.New("invalid email or password")
+	ErrNoFieldsToUpdate   = errors.New("no fields provided for update")
 )
 
 type AuthService interface {
-	SignUpUser(ctx context.Context, email, password string) (*models.User, error)
+	SignUpUser(ctx context.Context, email, password string, fullName string) (*models.User, error)
 	LoginUser(ctx context.Context, email, password string) (string, *models.User, error)
 	GetUserByID(ctx context.Context, userID uint) (*models.User, error)
 }
@@ -32,7 +33,7 @@ func NewAuthService(userRepo repositories.UserRepository, cfg *config.Config) Au
 	return &authService{userRepo: userRepo, cfg: cfg}
 }
 
-func (s *authService) SignUpUser(ctx context.Context, email, password string) (*models.User, error) {
+func (s *authService) SignUpUser(ctx context.Context, email, password string, fullName string) (*models.User, error) {
 	// Check if user already exists
 	_, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -51,6 +52,7 @@ func (s *authService) SignUpUser(ctx context.Context, email, password string) (*
 	newUser := &models.User{
 		Email:    email,
 		Password: hashedPassword,
+		FullName: fullName,
 	}
 
 	err = s.userRepo.CreateUser(ctx, newUser)

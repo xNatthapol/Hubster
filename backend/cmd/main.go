@@ -70,9 +70,11 @@ func main() {
 	userRepo := repositories.NewUserRepository(db)
 
 	authService := services.NewAuthService(userRepo, cfg)
+	userService := services.NewUserService(userRepo)
 	uploadService := services.NewUploadService(gcsUploader)
 
 	authHandler := handlers.NewAuthHandler(authService)
+	userHandler := handlers.NewUserHandler(userService)
 	uploadHandler := handlers.NewUploadHandler(uploadService)
 
 	app := fiber.New(fiber.Config{
@@ -86,7 +88,7 @@ func main() {
 	}))
 	app.Use(logger.New())
 
-	handlers.SetupRoutes(app, authHandler, uploadHandler, cfg)
+	handlers.SetupRoutes(app, authHandler, userHandler, uploadHandler, cfg)
 
 	log.Printf("INFO: Starting server on port %s", cfg.ServerPort)
 	if err := app.Listen(":" + cfg.ServerPort); err != nil {
