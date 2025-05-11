@@ -50,6 +50,18 @@ dependencies:
   # Utilities
   equatable: ^2.0.7
 
+  # Image picker
+  image_picker: ^1.1.2
+
+  # PATH
+  path: ^1.9.1
+
+  # HTTP parser
+  http_parser: ^4.1.2
+
+  # Phone field
+  phone_form_field: ^10.0.6
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

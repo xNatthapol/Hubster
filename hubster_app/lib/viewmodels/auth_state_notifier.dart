@@ -5,6 +5,7 @@ import 'package:hubster_app/models/auth/login_request.dart';
 import 'package:hubster_app/models/auth/signup_request.dart';
 import 'package:hubster_app/services/auth_service.dart';
 import 'auth_state.dart';
+import 'package:hubster_app/models/user/update_user_request.dart';
 
 // The StateNotifier
 class AuthStateNotifier extends StateNotifier<AuthState> {
@@ -82,14 +83,14 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> signup(String email, String password) async {
+  Future<void> signup(String email, String password, String fullName) async {
     state = state.copyWith(
       status: AuthStatus.loading,
       clearOperationMessage: true,
     );
     try {
       await _authService.signup(
-        SignUpRequest(email: email, password: password),
+        SignUpRequest(email: email, password: password, fullName: fullName),
       );
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
@@ -123,6 +124,47 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         "AuthStateNotifier: logout - state set to unauthenticated via Timer.run.",
       );
     });
+  }
+
+  Future<bool> updateUserProfile(UpdateUserRequest request) async {
+    if (state.status != AuthStatus.authenticated || state.currentUser == null) {
+      print(
+        "AuthStateNotifier: Cannot update profile, user not authenticated.",
+      );
+      state = state.copyWith(
+        status: AuthStatus.error,
+        operationMessage: "User not authenticated.",
+      );
+      return false;
+    }
+
+    final previousStatus = state.status;
+    state = state.copyWith(
+      status: AuthStatus.loading,
+      clearOperationMessage: true,
+    );
+    print("AuthStateNotifier: updateUserProfile called.");
+
+    try {
+      final updatedUser = await _authService.updateUserProfile(request);
+      // Update the currentUser in the state with the fresh data from the backend.
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        currentUser: updatedUser,
+        operationMessage: "Profile updated successfully!",
+      );
+      print(
+        "AuthStateNotifier: Profile update success. User: ${state.currentUser?.email}",
+      );
+      return true;
+    } catch (e) {
+      print("AuthStateNotifier: Profile update error: $e");
+      state = state.copyWith(
+        status: previousStatus,
+        operationMessage: e.toString(),
+      );
+      return false;
+    }
   }
 
   void clearOperationMessage() {

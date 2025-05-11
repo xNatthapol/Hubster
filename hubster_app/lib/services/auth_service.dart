@@ -6,9 +6,10 @@ import 'package:hubster_app/models/auth/signup_request.dart';
 import 'package:hubster_app/models/auth/user.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hubster_app/models/user/update_user_request.dart';
 
 // Handles authentication-related API calls and token management.
-@lazySingleton // Registers this service with GetIt
+@lazySingleton
 class AuthService {
   final ApiClient _apiClient;
 
@@ -73,20 +74,35 @@ class AuthService {
   Future<User> getMe() async {
     // No need to check token here, ApiClient interceptor adds it.
     // If token is missing/invalid, interceptor or backend will return 401.
-    print("AuthService: Calling /auth/me"); // DEBUG
+    print("AuthService: Calling /auth/me");
     try {
-      final response = await _apiClient.dio.get(
-        '/auth/me',
-      );
+      final response = await _apiClient.dio.get('/auth/me');
       return User.fromJson(response.data);
     } on DioException catch (e) {
       print(
         "AuthService: getMe failed - Status: ${e.response?.statusCode}, Data: ${e.response?.data}",
-      ); // DEBUG
+      );
       // The ViewModel will handle this exception and can decide to logout if it's a 401
       throw Exception(
         e.response?.data['error'] ?? 'Failed to fetch user details',
       );
+    }
+  }
+
+  // Updates the current user's profile.
+  Future<User> updateUserProfile(UpdateUserRequest request) async {
+    print("AuthService: Calling PATCH /user/profile");
+    try {
+      final response = await _apiClient.dio.patch(
+        '/user/profile',
+        data: request.toJson(),
+      );
+      return User.fromJson(response.data);
+    } on DioException catch (e) {
+      print(
+        "AuthService: updateUserProfile failed - Status: ${e.response?.statusCode}, Data: ${e.response?.data}",
+      );
+      throw Exception(e.response?.data['error'] ?? 'Failed to update profile');
     }
   }
 }
