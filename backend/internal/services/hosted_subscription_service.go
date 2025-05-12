@@ -243,11 +243,17 @@ func (s *hostedSubscriptionService) ApproveJoinRequest(ctx context.Context, host
 		return nil, ErrSubscriptionFull
 	}
 
+	now := time.Now().UTC()
+	var initialNextPaymentDate time.Time
+	year, month, _ := now.Date()
+	initialNextPaymentDate = time.Date(year, month+1, 1, 0, 0, 0, 0, now.Location()).Add(-time.Nanosecond)
+
 	membership := &models.SubscriptionMembership{
 		MemberUserID:         joinReq.RequesterUserID,
 		HostedSubscriptionID: joinReq.HostedSubscriptionID,
 		JoinedDate:           time.Now().UTC(),
 		PaymentStatus:        models.PaymentStatusDue,
+		NextPaymentDate:      &initialNextPaymentDate,
 	}
 	if err := s.membershipRepo.Create(ctx, membership); err != nil {
 		return nil, fmt.Errorf("creating subscription membership: %w", err)
@@ -395,7 +401,7 @@ func (s *hostedSubscriptionService) ListMembersOfSubscription(ctx context.Contex
 }
 
 // mapDbSubsToResponseSubs helper function
-func (s *hostedSubscriptionService) mapDbSubsToResponseSubs(ctx context.Context, dbSubscriptions []models.HostedSubscription) []models.HostedSubscriptionResponse { /* ... */
+func (s *hostedSubscriptionService) mapDbSubsToResponseSubs(ctx context.Context, dbSubscriptions []models.HostedSubscription) []models.HostedSubscriptionResponse {
 	responseSubscriptions := make([]models.HostedSubscriptionResponse, 0, len(dbSubscriptions))
 	for _, dbSub := range dbSubscriptions {
 		var costPerSlot float64

@@ -44,3 +44,25 @@ type CreatePaymentRecordRequest struct {
 	PaymentMethod          string  `json:"payment_method,omitempty" validate:"max=100"`
 	TransactionReference   string  `json:"transaction_reference,omitempty" validate:"max=255"`
 }
+
+// PaymentRecordResponse is a DTO for returning payment record details enriched with related info.
+// @name PaymentRecordResponse
+type PaymentRecordResponse struct {
+	ID                       uint                `json:"id"`
+	CreatedAt                time.Time           `json:"createdAt"`
+	UpdatedAt                time.Time           `json:"updatedAt"`
+	SubscriptionMembershipID uint                `json:"subscription_membership_id"`
+	PaymentCycleIdentifier   string              `json:"payment_cycle_identifier"`
+	AmountExpected           float64             `json:"amount_expected"`
+	AmountPaid               float64             `json:"amount_paid"`
+	PaymentMethod            string              `json:"payment_method,omitempty"`
+	TransactionReference     string              `json:"transaction_reference,omitempty"`
+	ProofImageURL            string              `json:"proof_image_url"`
+	SubmittedAt              time.Time           `json:"submitted_at"`
+	Status                   PaymentRecordStatus `json:"status"`
+	ReviewedByUserID         *uint               `json:"reviewed_by_user_id,omitempty"`
+	ReviewedAt               *time.Time          `json:"reviewed_at,omitempty"`
+	MemberName               string              `json:"member_name"`
+	MemberProfilePictureURL  *string             `json:"member_profile_picture_url,omitempty"`
+	SubscriptionTitle        string              `json:"subscription_title"`
+}

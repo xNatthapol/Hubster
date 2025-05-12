@@ -86,7 +86,7 @@ func (h *PaymentHandler) SubmitPaymentProof(c *fiber.Ctx) error {
 // @Param subscriptionId path int true "ID of the Hosted Subscription"
 // @Param status query string false "Filter by payment record status (e.g., ProofSubmitted)" Enums(ProofSubmitted,Approved,Declined,RequiresAttention)
 // @Security BearerAuth
-// @Success 200 {array} models.PaymentRecord "A list of payment records"
+// @Success 200 {array} models.PaymentRecordResponse "A list of payment records"
 // @Failure 400 {object} ErrorResponse "Invalid ID or status format"
 // @Failure 401 {object} ErrorResponse "Unauthorized"
 // @Failure 403 {object} ErrorResponse "Forbidden (not the host)"
@@ -116,7 +116,7 @@ func (h *PaymentHandler) ListPaymentRecordsForHostedSubscription(c *fiber.Ctx) e
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{Error: "Failed to retrieve payment records"})
 	}
 	if records == nil {
-		records = []models.PaymentRecord{}
+		records = []models.PaymentRecordResponse{}
 	}
 	return c.Status(fiber.StatusOK).JSON(records)
 }
@@ -128,7 +128,7 @@ func (h *PaymentHandler) ListPaymentRecordsForHostedSubscription(c *fiber.Ctx) e
 // @Produce json
 // @Param id path int true "Payment Record ID"
 // @Security BearerAuth
-// @Success 200 {object} models.PaymentRecord "Payment record details"
+// @Success 200 {object} models.PaymentRecordResponse "Payment record details"
 // @Failure 400 {object} ErrorResponse "Invalid ID format"
 // @Failure 401 {object} ErrorResponse "Unauthorized"
 // @Failure 403 {object} ErrorResponse "Forbidden"
@@ -147,7 +147,7 @@ func (h *PaymentHandler) GetPaymentRecord(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(ErrorResponse{Error: "Invalid payment record ID"})
 	}
 
-	paymentRecord, err := h.paymentService.GetPaymentRecordDetails(c.Context(), uint(prID), accessorUserID, true /* Placeholder for isHostAction */)
+	paymentRecord, err := h.paymentService.GetPaymentRecordDetails(c.Context(), uint(prID), accessorUserID, true)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(ErrorResponse{Error: "Failed to get payment record"})
 	}
@@ -161,7 +161,7 @@ func (h *PaymentHandler) GetPaymentRecord(c *fiber.Ctx) error {
 // @Produce json
 // @Param id path int true "Payment Record ID"
 // @Security BearerAuth
-// @Success 200 {object} models.PaymentRecord "Payment proof approved"
+// @Success 200 {object} models.PaymentRecordResponse "Payment proof approved"
 // @Failure 400 {object} ErrorResponse "Invalid ID or record not modifiable"
 // @Failure 401 {object} ErrorResponse "Unauthorized"
 // @Failure 403 {object} ErrorResponse "Forbidden"
@@ -194,7 +194,7 @@ func (h *PaymentHandler) ApprovePaymentProof(c *fiber.Ctx) error {
 // @Produce json
 // @Param id path int true "Payment Record ID"
 // @Security BearerAuth
-// @Success 200 {object} models.PaymentRecord "Payment proof declined"
+// @Success 200 {object} models.PaymentRecordResponse "Payment proof declined"
 // @Failure 400 {object} ErrorResponse "Invalid ID, record not modifiable, or notes missing if required"
 // @Failure 401 {object} ErrorResponse "Unauthorized"
 // @Failure 403 {object} ErrorResponse "Forbidden"

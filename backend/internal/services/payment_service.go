@@ -25,11 +25,11 @@ var (
 // PaymentService defines the interface for payment-related operations.
 type PaymentService interface {
 	SubmitPaymentProof(ctx context.Context, memberUserID uint, membershipID uint, req *models.CreatePaymentRecordRequest) (*models.PaymentRecord, error)
-	GetPaymentRecordDetails(ctx context.Context, paymentRecordID uint, accessorUserID uint, isHostAction bool) (*models.PaymentRecord, error)
-	ApprovePaymentProof(ctx context.Context, hostUserID uint, paymentRecordID uint) (*models.PaymentRecord, error)
-	DeclinePaymentProof(ctx context.Context, hostUserID uint, paymentRecordID uint) (*models.PaymentRecord, error)
-	ListPaymentRecordsForMembership(ctx context.Context, memberUserID uint, membershipID uint) ([]models.PaymentRecord, error) // Member's history
-	ListPaymentRecordsForHost(ctx context.Context, hostUserID uint, hostedSubscriptionID uint, statusFilter models.PaymentRecordStatus) ([]models.PaymentRecord, error)
+	GetPaymentRecordDetails(ctx context.Context, paymentRecordID uint, accessorUserID uint, isHostAction bool) (*models.PaymentRecordResponse, error)
+	ApprovePaymentProof(ctx context.Context, hostUserID uint, paymentRecordID uint) (*models.PaymentRecordResponse, error)
+	DeclinePaymentProof(ctx context.Context, hostUserID uint, paymentRecordID uint) (*models.PaymentRecordResponse, error)
+	ListPaymentRecordsForMembership(ctx context.Context, memberUserID uint, membershipID uint) ([]models.PaymentRecord, error)
+	ListPaymentRecordsForHost(ctx context.Context, hostUserID uint, hostedSubscriptionID uint, statusFilter models.PaymentRecordStatus) ([]models.PaymentRecordResponse, error)
 }
 
 type paymentService struct {
@@ -97,46 +97,125 @@ func (s *paymentService) SubmitPaymentProof(ctx context.Context, memberUserID ui
 }
 
 // ListPaymentRecordsForHost retrieves payment records for a specific hosted subscription filtered by status.
-func (s *paymentService) ListPaymentRecordsForHost(ctx context.Context, hostUserID uint, hostedSubscriptionID uint, statusFilter models.PaymentRecordStatus) ([]models.PaymentRecord, error) {
+func (s *paymentService) ListPaymentRecordsForHost(ctx context.Context, hostUserID uint, hostedSubscriptionID uint, statusFilter models.PaymentRecordStatus) ([]models.PaymentRecordResponse, error) {
 	hs, err := s.hsRepo.GetByID(ctx, hostedSubscriptionID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrSubscriptionNotFound
 		}
-		return nil, fmt.Errorf("fetching hosted subscription: %w", err)
+		return nil, fmt.Errorf("fetching hosted subscription for ownership check: %w", err)
 	}
 	if hs.HostUserID != hostUserID {
 		return nil, ErrForbidden
 	}
 
-	return s.paymentRecordRepo.ListByHostedSubscriptionIDAndStatus(ctx, hostedSubscriptionID, statusFilter)
+	dbRecords, err := s.paymentRecordRepo.ListByHostedSubscriptionIDAndStatus(ctx, hostedSubscriptionID, statusFilter)
+	if err != nil {
+		return nil, fmt.Errorf("fetching payment records from repo: %w", err)
+	}
+
+	responses := make([]models.PaymentRecordResponse, len(dbRecords))
+	for i, pr := range dbRecords {
+
+		var memberName string
+		var memberAvatar *string
+		if pr.SubscriptionMembership.User.ID != 0 {
+			memberName = pr.SubscriptionMembership.User.FullName
+			memberAvatar = pr.SubscriptionMembership.User.ProfilePictureURL
+		} else {
+			log.Printf("Warning: Member User not fully preloaded for PaymentRecord ID %d (MembershipID: %d)", pr.ID, pr.SubscriptionMembershipID)
+			memberName = fmt.Sprintf("Member ID %d", pr.SubscriptionMembership.MemberUserID)
+		}
+
+		var subTitle string
+		if pr.SubscriptionMembership.HostedSubscription.ID != 0 {
+			subTitle = pr.SubscriptionMembership.HostedSubscription.SubscriptionTitle
+		} else {
+			log.Printf("Warning: HostedSubscription not preloaded for PaymentRecord ID %d (MembershipID: %d)", pr.ID, pr.SubscriptionMembershipID)
+			subTitle = fmt.Sprintf("Subscription ID %d", pr.SubscriptionMembership.HostedSubscriptionID)
+		}
+
+		responses[i] = models.PaymentRecordResponse{
+			ID:                       pr.ID,
+			CreatedAt:                pr.CreatedAt,
+			UpdatedAt:                pr.UpdatedAt,
+			SubscriptionMembershipID: pr.SubscriptionMembershipID,
+			PaymentCycleIdentifier:   pr.PaymentCycleIdentifier,
+			AmountExpected:           pr.AmountExpected,
+			AmountPaid:               pr.AmountPaid,
+			PaymentMethod:            pr.PaymentMethod,
+			TransactionReference:     pr.TransactionReference,
+			ProofImageURL:            pr.ProofImageURL,
+			SubmittedAt:              pr.SubmittedAt,
+			Status:                   pr.Status,
+			ReviewedByUserID:         pr.ReviewedByUserID,
+			ReviewedAt:               pr.ReviewedAt,
+			MemberName:               memberName,
+			MemberProfilePictureURL:  memberAvatar,
+			SubscriptionTitle:        subTitle,
+		}
+	}
+	return responses, nil
 }
 
 // GetPaymentRecordDetails retrieves a specific payment record.
-func (s *paymentService) GetPaymentRecordDetails(ctx context.Context, paymentRecordID uint, accessorUserID uint, isHostAction bool) (*models.PaymentRecord, error) {
-	pr, err := s.paymentRecordRepo.GetByID(ctx, paymentRecordID) // Preloads Membership.User & Membership.HostedSubscription
+func (s *paymentService) GetPaymentRecordDetails(ctx context.Context, paymentRecordID uint, accessorUserID uint, isHostAction bool) (*models.PaymentRecordResponse, error) {
+	pr, err := s.paymentRecordRepo.GetByID(ctx, paymentRecordID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrPaymentRecordNotFound
 		}
-		return nil, fmt.Errorf("fetching payment record: %w", err)
+		return nil, fmt.Errorf("fetching payment record from repo: %w", err)
 	}
 
-	// Authorization check
-	if isHostAction {
-		if pr.SubscriptionMembership.HostedSubscription.HostUserID != accessorUserID {
-			return nil, ErrForbidden
-		}
-	} else {
-		if pr.SubscriptionMembership.MemberUserID != accessorUserID {
-			return nil, ErrForbidden
-		}
+	isMember := pr.SubscriptionMembership.MemberUserID == accessorUserID
+	isHost := pr.SubscriptionMembership.HostedSubscription.HostUserID == accessorUserID
+
+	if !isMember && !isHost {
+		return nil, ErrForbidden
 	}
-	return pr, nil
+
+	// Map to PaymentRecordResponse DTO
+	var memberName string
+	var memberAvatar *string
+	if pr.SubscriptionMembership.User.ID != 0 {
+		memberName = pr.SubscriptionMembership.User.FullName
+		memberAvatar = pr.SubscriptionMembership.User.ProfilePictureURL
+	} else {
+		memberName = "Member (Details Missing)"
+	}
+
+	var subTitle string
+	if pr.SubscriptionMembership.HostedSubscription.ID != 0 {
+		subTitle = pr.SubscriptionMembership.HostedSubscription.SubscriptionTitle
+	} else {
+		subTitle = "Subscription (Details Missing)"
+	}
+
+	response := &models.PaymentRecordResponse{
+		ID:                       pr.ID,
+		CreatedAt:                pr.CreatedAt,
+		UpdatedAt:                pr.UpdatedAt,
+		SubscriptionMembershipID: pr.SubscriptionMembershipID,
+		PaymentCycleIdentifier:   pr.PaymentCycleIdentifier,
+		AmountExpected:           pr.AmountExpected,
+		AmountPaid:               pr.AmountPaid,
+		PaymentMethod:            pr.PaymentMethod,
+		TransactionReference:     pr.TransactionReference,
+		ProofImageURL:            pr.ProofImageURL,
+		SubmittedAt:              pr.SubmittedAt,
+		Status:                   pr.Status,
+		ReviewedByUserID:         pr.ReviewedByUserID,
+		ReviewedAt:               pr.ReviewedAt,
+		MemberName:               memberName,
+		MemberProfilePictureURL:  memberAvatar,
+		SubscriptionTitle:        subTitle,
+	}
+	return response, nil
 }
 
 // ApprovePaymentProof allows a host to approve a payment proof.
-func (s *paymentService) ApprovePaymentProof(ctx context.Context, hostUserID uint, paymentRecordID uint) (*models.PaymentRecord, error) {
+func (s *paymentService) ApprovePaymentProof(ctx context.Context, hostUserID uint, paymentRecordID uint) (*models.PaymentRecordResponse, error) {
 	pr, err := s.paymentRecordRepo.GetByID(ctx, paymentRecordID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -185,11 +264,34 @@ func (s *paymentService) ApprovePaymentProof(ctx context.Context, hostUserID uin
 		log.Printf("CRITICAL: Approved PaymentRecord %d but failed to update SubscriptionMembership %d status/next_due_date: %v", pr.ID, pr.SubscriptionMembershipID, err)
 	}
 
-	return s.paymentRecordRepo.GetByID(ctx, paymentRecordID)
+	updatedPRFull, fetchErr := s.paymentRecordRepo.GetByID(ctx, paymentRecordID)
+	if fetchErr != nil {
+		return nil, fmt.Errorf("re-fetching payment record after approval: %w", fetchErr)
+	}
+	// Map using the same logic as GetPaymentRecordDetails
+	var memberName string
+	var memberAvatar *string
+	var subTitle string
+	if updatedPRFull.SubscriptionMembership.ID != 0 {
+		if updatedPRFull.SubscriptionMembership.User.ID != 0 {
+			memberName = updatedPRFull.SubscriptionMembership.User.FullName
+			memberAvatar = updatedPRFull.SubscriptionMembership.User.ProfilePictureURL
+		}
+		if updatedPRFull.SubscriptionMembership.HostedSubscription.ID != 0 {
+			subTitle = updatedPRFull.SubscriptionMembership.HostedSubscription.SubscriptionTitle
+		}
+	}
+	response := &models.PaymentRecordResponse{
+		ID: updatedPRFull.ID, CreatedAt: updatedPRFull.CreatedAt, UpdatedAt: updatedPRFull.UpdatedAt, SubscriptionMembershipID: updatedPRFull.SubscriptionMembershipID, PaymentCycleIdentifier: updatedPRFull.PaymentCycleIdentifier,
+		AmountExpected: updatedPRFull.AmountExpected, AmountPaid: updatedPRFull.AmountPaid, PaymentMethod: updatedPRFull.PaymentMethod, TransactionReference: updatedPRFull.TransactionReference,
+		ProofImageURL: updatedPRFull.ProofImageURL, SubmittedAt: updatedPRFull.SubmittedAt, Status: updatedPRFull.Status, ReviewedByUserID: updatedPRFull.ReviewedByUserID, ReviewedAt: updatedPRFull.ReviewedAt,
+		MemberName: memberName, MemberProfilePictureURL: memberAvatar, SubscriptionTitle: subTitle,
+	}
+	return response, nil
 }
 
 // DeclinePaymentProof allows a host to decline a payment proof.
-func (s *paymentService) DeclinePaymentProof(ctx context.Context, hostUserID uint, paymentRecordID uint) (*models.PaymentRecord, error) {
+func (s *paymentService) DeclinePaymentProof(ctx context.Context, hostUserID uint, paymentRecordID uint) (*models.PaymentRecordResponse, error) {
 	pr, err := s.paymentRecordRepo.GetByID(ctx, paymentRecordID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -214,7 +316,29 @@ func (s *paymentService) DeclinePaymentProof(ctx context.Context, hostUserID uin
 	if err != nil {
 		log.Printf("CRITICAL: Declined PaymentRecord %d but failed to update SubscriptionMembership %d status: %v", pr.ID, pr.SubscriptionMembershipID, err)
 	}
-	return s.paymentRecordRepo.GetByID(ctx, paymentRecordID)
+	updatedPRFull, fetchErr := s.paymentRecordRepo.GetByID(ctx, paymentRecordID)
+	if fetchErr != nil {
+		return nil, fmt.Errorf("re-fetching payment record after decline: %w", fetchErr)
+	}
+	var memberName string
+	var memberAvatar *string
+	var subTitle string
+	if updatedPRFull.SubscriptionMembership.ID != 0 {
+		if updatedPRFull.SubscriptionMembership.User.ID != 0 {
+			memberName = updatedPRFull.SubscriptionMembership.User.FullName
+			memberAvatar = updatedPRFull.SubscriptionMembership.User.ProfilePictureURL
+		}
+		if updatedPRFull.SubscriptionMembership.HostedSubscription.ID != 0 {
+			subTitle = updatedPRFull.SubscriptionMembership.HostedSubscription.SubscriptionTitle
+		}
+	}
+	response := &models.PaymentRecordResponse{
+		ID: updatedPRFull.ID, CreatedAt: updatedPRFull.CreatedAt, UpdatedAt: updatedPRFull.UpdatedAt, SubscriptionMembershipID: updatedPRFull.SubscriptionMembershipID, PaymentCycleIdentifier: updatedPRFull.PaymentCycleIdentifier,
+		AmountExpected: updatedPRFull.AmountExpected, AmountPaid: updatedPRFull.AmountPaid, PaymentMethod: updatedPRFull.PaymentMethod, TransactionReference: updatedPRFull.TransactionReference,
+		ProofImageURL: updatedPRFull.ProofImageURL, SubmittedAt: updatedPRFull.SubmittedAt, Status: updatedPRFull.Status, ReviewedByUserID: updatedPRFull.ReviewedByUserID, ReviewedAt: updatedPRFull.ReviewedAt,
+		MemberName: memberName, MemberProfilePictureURL: memberAvatar, SubscriptionTitle: subTitle,
+	}
+	return response, nil
 }
 
 // ListPaymentRecordsForMembership retrieves payment history for a member's specific subscription.

@@ -70,6 +70,7 @@ func (r *paymentRecordRepository) ListByHostedSubscriptionIDAndStatus(ctx contex
 		Joins("JOIN subscription_memberships sm ON sm.id = payment_records.subscription_membership_id").
 		Where("sm.hosted_subscription_id = ? AND payment_records.status = ?", hostedSubscriptionID, status).
 		Preload("SubscriptionMembership.User").
+		Preload("SubscriptionMembership.HostedSubscription").
 		Order("payment_records.created_at asc").
 		Find(&records).Error
 	return records, err
