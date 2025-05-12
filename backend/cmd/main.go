@@ -68,14 +68,31 @@ func main() {
 	}
 
 	userRepo := repositories.NewUserRepository(db)
+	subscriptionServiceRepo := repositories.NewSubscriptionServiceRepository(db)
+	hostedSubRepo := repositories.NewHostedSubscriptionRepository(db)
+	membershipRepo := repositories.NewSubscriptionMembershipRepository(db)
+	joinRequestRepo := repositories.NewJoinRequestRepository(db) // Add this
+	paymentRecordRepo := repositories.NewPaymentRecordRepository(db)
 
 	authService := services.NewAuthService(userRepo, cfg)
 	userService := services.NewUserService(userRepo)
 	uploadService := services.NewUploadService(gcsUploader)
+	subscriptionCatalogService := services.NewSubscriptionCatalogService(subscriptionServiceRepo)
+	hostedSubService := services.NewHostedSubscriptionService(
+		hostedSubRepo,
+		joinRequestRepo,
+		membershipRepo,
+		subscriptionServiceRepo,
+		userRepo,
+	)
+	paymentService := services.NewPaymentService(paymentRecordRepo, membershipRepo, hostedSubRepo)
 
 	authHandler := handlers.NewAuthHandler(authService)
-	userHandler := handlers.NewUserHandler(userService)
+	userHandler := handlers.NewUserHandler(userService, hostedSubService)
 	uploadHandler := handlers.NewUploadHandler(uploadService)
+	subscriptionServiceHandler := handlers.NewSubscriptionServiceHandler(subscriptionCatalogService)
+	hostedSubHandler := handlers.NewHostedSubscriptionHandler(hostedSubService)
+	paymentHandler := handlers.NewPaymentHandler(paymentService)
 
 	app := fiber.New(fiber.Config{
 		AppName: "Hubster App",
@@ -88,7 +105,15 @@ func main() {
 	}))
 	app.Use(logger.New())
 
-	handlers.SetupRoutes(app, authHandler, userHandler, uploadHandler, cfg)
+	handlers.SetupRoutes(
+		app,
+		authHandler,
+		userHandler,
+		uploadHandler,
+		subscriptionServiceHandler,
+		hostedSubHandler,
+		paymentHandler,
+		cfg)
 
 	log.Printf("INFO: Starting server on port %s", cfg.ServerPort)
 	if err := app.Listen(":" + cfg.ServerPort); err != nil {

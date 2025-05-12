@@ -29,7 +29,14 @@ func ConnectDB(cfg *config.Config) (*gorm.DB, error) {
 
 	// Run migrations
 	log.Println("Running database migrations...")
-	err = db.AutoMigrate(&models.User{})
+	err = db.AutoMigrate(
+		&models.User{},
+		&models.SubscriptionService{},
+		&models.HostedSubscription{},
+		&models.SubscriptionMembership{},
+		&models.JoinRequest{},
+		&models.PaymentRecord{},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to migrate database: %w", err)
 	}
