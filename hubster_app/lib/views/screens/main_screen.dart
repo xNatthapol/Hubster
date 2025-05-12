@@ -1,42 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hubster_app/viewmodels/main_screen_tab_notifier.dart';
 import 'package:hubster_app/views/screens/create/create_subscription_screen.dart';
 import 'package:hubster_app/views/screens/explore/explore_screen.dart';
 import 'package:hubster_app/views/screens/home_screen.dart';
 import 'package:hubster_app/views/screens/payment/payment_screen.dart';
 import 'package:hubster_app/views/screens/profile/profile_screen.dart';
 
-class MainScreen extends StatefulWidget {
+class MainScreen extends ConsumerWidget {
   const MainScreen({super.key});
-
-  @override
-  State<MainScreen> createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0; // Default to the first tab (Home)
 
   // List of widgets to display for each tab
   static const List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     ExploreScreen(),
-    CreateScreen(),
+    CreateSubscriptionScreen(),
     PaymentScreen(),
     ProfileScreen(),
   ];
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   @override
-  Widget build(BuildContext context) {
-    final Color selectedItemColor = Theme.of(context).primaryColor;
-    final Color unselectedItemColor = Colors.grey[600]!;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedIndex = ref.watch(mainScreenTabNotifierProvider);
+    final tabNotifier = ref.read(mainScreenTabNotifierProvider.notifier);
+
+    print("MainScreen BUILD. SelectedIndex from notifier: $selectedIndex");
 
     return Scaffold(
-      body: Center(child: _widgetOptions.elementAt(_selectedIndex)),
+      body: Center(child: _widgetOptions.elementAt(selectedIndex)),
       bottomNavigationBar: BottomNavigationBar(
         items: <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -51,11 +42,7 @@ class _MainScreenState extends State<MainScreen> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.add_circle_outline, size: 28),
-            activeIcon: Icon(
-              Icons.add_circle,
-              size: 28,
-              color: selectedItemColor,
-            ),
+            activeIcon: Icon(Icons.add_circle, size: 28),
             label: 'Create',
           ),
           BottomNavigationBarItem(
@@ -69,10 +56,10 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Profile',
           ),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: selectedItemColor,
-        unselectedItemColor: unselectedItemColor,
-        onTap: _onItemTapped,
+        currentIndex: selectedIndex,
+        onTap: (index) {
+          tabNotifier.changeTab(index);
+        },
         type: BottomNavigationBarType.fixed,
         showUnselectedLabels: true,
         selectedFontSize: 12,

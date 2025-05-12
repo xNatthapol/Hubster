@@ -13,6 +13,7 @@ import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 
 import '../../services/auth_service.dart' as _i610;
+import '../../services/subscription_api_service.dart' as _i855;
 import '../../services/upload_service.dart' as _i105;
 import '../api/api_client.dart' as _i277;
 
@@ -24,6 +25,9 @@ _i174.GetIt $initGetIt(
 }) {
   final gh = _i526.GetItHelper(getIt, environment, environmentFilter);
   gh.lazySingleton<_i277.ApiClient>(() => _i277.ApiClient());
+  gh.lazySingleton<_i855.SubscriptionApiService>(
+    () => _i855.SubscriptionApiService(gh<_i277.ApiClient>()),
+  );
   gh.lazySingleton<_i610.AuthService>(
     () => _i610.AuthService(gh<_i277.ApiClient>()),
   );

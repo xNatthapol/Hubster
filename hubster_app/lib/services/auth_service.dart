@@ -26,7 +26,6 @@ class AuthService {
       await _saveToken(authResponse.token);
       return authResponse;
     } on DioException catch (e) {
-      // Handle specific Dio errors or rethrow a custom error
       print("Login error: ${e.response?.data ?? e.message}");
       throw Exception(e.response?.data['error'] ?? 'Login failed');
     }
@@ -39,7 +38,6 @@ class AuthService {
         '/auth/signup',
         data: request.toJson(),
       );
-      // Assuming signup returns the User object directly (excluding password)
       return User.fromJson(response.data);
     } on DioException catch (e) {
       print("Signup error: ${e.response?.data ?? e.message}");
@@ -72,8 +70,6 @@ class AuthService {
   }
 
   Future<User> getMe() async {
-    // No need to check token here, ApiClient interceptor adds it.
-    // If token is missing/invalid, interceptor or backend will return 401.
     print("AuthService: Calling /auth/me");
     try {
       final response = await _apiClient.dio.get('/auth/me');
@@ -82,7 +78,6 @@ class AuthService {
       print(
         "AuthService: getMe failed - Status: ${e.response?.statusCode}, Data: ${e.response?.data}",
       );
-      // The ViewModel will handle this exception and can decide to logout if it's a 401
       throw Exception(
         e.response?.data['error'] ?? 'Failed to fetch user details',
       );
@@ -91,10 +86,10 @@ class AuthService {
 
   // Updates the current user's profile.
   Future<User> updateUserProfile(UpdateUserRequest request) async {
-    print("AuthService: Calling PATCH /user/profile");
+    print("AuthService: Calling PATCH /users/me/profile");
     try {
       final response = await _apiClient.dio.patch(
-        '/user/profile',
+        '/users/me/profile',
         data: request.toJson(),
       );
       return User.fromJson(response.data);
