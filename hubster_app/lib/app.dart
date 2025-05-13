@@ -122,6 +122,7 @@ class HubsterApp extends ConsumerWidget {
         '/signup': (context) => const SignUpScreen(),
         '/main': (context) => const MainScreen(),
       },
+      debugShowCheckedModeBanner: false,
     );
   }
 }

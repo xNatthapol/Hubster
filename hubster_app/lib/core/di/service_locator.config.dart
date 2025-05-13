@@ -13,6 +13,7 @@ import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 
 import '../../services/auth_service.dart' as _i610;
+import '../../services/payment_api_service.dart' as _i24;
 import '../../services/subscription_api_service.dart' as _i855;
 import '../../services/upload_service.dart' as _i105;
 import '../api/api_client.dart' as _i277;
@@ -33,6 +34,9 @@ _i174.GetIt $initGetIt(
   );
   gh.lazySingleton<_i105.UploadService>(
     () => _i105.UploadService(gh<_i277.ApiClient>()),
+  );
+  gh.lazySingleton<_i24.PaymentApiService>(
+    () => _i24.PaymentApiService(gh<_i277.ApiClient>()),
   );
   return getIt;
 }
