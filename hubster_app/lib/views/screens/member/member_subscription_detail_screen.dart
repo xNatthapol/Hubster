@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hubster_app/models/subscriptions/subscription_membership.dart';
 import 'package:hubster_app/core/theme/app_colors.dart';
+import 'package:hubster_app/views/screens/payment/payment_proof_upload_screen.dart';
 import 'package:intl/intl.dart';
 
 class MemberSubscriptionDetailScreen extends ConsumerWidget {
@@ -226,20 +227,31 @@ class MemberSubscriptionDetailScreen extends ConsumerWidget {
                   foregroundColor: Colors.white,
                 ),
                 onPressed: () {
-                  // TODO: Navigate to PaymentProofUploadScreen, passing necessary info like
                   print(
                     "Make Payment button tapped for membership ID: ${subMembership.id}",
                   );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        "Navigate to Payment Proof Upload screen (coming soon!)",
-                      ),
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder:
+                          (_) => PaymentProofUploadScreen(
+                            membershipId: subMembership.id.toString(),
+                            hostedSubscriptionTitle:
+                                subMembership.hostedSubscriptionTitle,
+                            serviceProviderName:
+                                subMembership.serviceProviderName,
+                            serviceProviderLogoUrl:
+                                subMembership.serviceProviderLogoUrl,
+                            amountExpected: subMembership.costPerSlot,
+                            hostPaymentQRCodeUrl:
+                                subMembership.paymentQRCodeUrl,
+                            nextDueDate: subMembership.nextPaymentDate,
+                          ),
                     ),
                   );
                 },
                 child: const Text(
-                  "Make Payment",
+                  "Make Payment / Submit Proof",
                   style: TextStyle(fontSize: 16),
                 ),
               ),
@@ -247,7 +259,7 @@ class MemberSubscriptionDetailScreen extends ConsumerWidget {
 
             const SizedBox(height: 30),
 
-            // Payment History Section (Placeholder)
+            // Payment History Section
             Text(
               "Payment History",
               style: Theme.of(

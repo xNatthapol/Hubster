@@ -214,6 +214,14 @@ class ManageSubscriptionScreen extends ConsumerWidget {
                               : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  ElevatedButton(
+                                    child: const Text("Accept"),
+                                    onPressed:
+                                        () => notifier.approveRequest(
+                                          request.id.toString(),
+                                        ),
+                                  ),
+                                  const SizedBox(width: 8),
                                   TextButton(
                                     child: const Text(
                                       "Decline",
@@ -221,14 +229,6 @@ class ManageSubscriptionScreen extends ConsumerWidget {
                                     ),
                                     onPressed:
                                         () => notifier.declineRequest(
-                                          request.id.toString(),
-                                        ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  ElevatedButton(
-                                    child: const Text("Accept"),
-                                    onPressed:
-                                        () => notifier.approveRequest(
                                           request.id.toString(),
                                         ),
                                   ),
