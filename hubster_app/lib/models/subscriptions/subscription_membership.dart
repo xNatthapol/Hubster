@@ -66,15 +66,23 @@ class SubscriptionMembershipResponse extends Equatable {
   });
 
   factory SubscriptionMembershipResponse.fromJson(Map<String, dynamic> json) {
-    DateTime? parseOptionalDate(dynamic value) {
+    DateTime? safeParseDateTime(
+      dynamic value,
+      String fieldName, {
+      bool isOptional = false,
+    }) {
       if (value is String && value.isNotEmpty) {
         try {
           return DateTime.parse(value);
         } catch (e) {
-          print("Error parsing optional date: $value");
+          print("Error parsing DateTime for $fieldName '$value': $e");
         }
       }
-      return null;
+      if (isOptional) return null;
+      print(
+        "Warning: DateTime field $fieldName is null, empty, or not a string: '$value'. Using epoch default for non-optional.",
+      );
+      return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
     }
 
     String safeGetString(
@@ -100,7 +108,14 @@ class SubscriptionMembershipResponse extends Equatable {
       paymentStatus: PaymentStatus.fromString(
         json['payment_status'] as String?,
       ),
-      nextPaymentDate: parseOptionalDate(json['next_payment_date']),
+      nextPaymentDate:
+          json['next_payment_date'] != null
+              ? safeParseDateTime(
+                json['next_payment_date'],
+                'nextPaymentDate',
+                isOptional: true,
+              )
+              : null,
       hostedSubscriptionTitle: safeGetString(
         json['hosted_subscription_title'],
         'hosted_subscription_title',
