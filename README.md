@@ -216,7 +216,7 @@ The project contains two main parts:
       ```
 
       ```dotenv
-      # Frontend Environment Variables
+      # Flutter Environment Variables
       # Copy this file to .env and set the correct values
 
       # Base URL for Go backend API (including the /api path prefix)
